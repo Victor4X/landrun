@@ -240,15 +240,6 @@ run_test "File redirection" \
     "./landrun --log-level debug --rox / --rw $RW_DIR -- bash -c 'ls /usr > $RW_DIR/output.txt && cat $RW_DIR/output.txt'" \
     0
 
-# Network restrictions tests (if kernel supports it)
-run_test "TCP connection without permission" \
-    "./landrun --log-level debug --rox /usr --ro / -- curl -s --connect-timeout 2 https://example.com" \
-    7
-
-run_test "TCP connection with permission" \
-    "./landrun --log-level debug --rox /usr --ro / --connect-tcp 443 -- curl -s --connect-timeout 2 https://example.com" \
-    0
-
 # Environment isolation tests
 export TEST_ENV_VAR="test_value_123"
 run_test "Environment isolation" \
@@ -285,18 +276,9 @@ run_test "Unrestricted filesystem access" \
     "./landrun --log-level debug --unrestricted-filesystem ls /usr" \
     0
 
-run_test "Unrestricted network access" \
-    "./landrun --log-level debug --unrestricted-network --rox /usr --ro /etc -- curl -s --connect-timeout 2 https://example.com" \
-    0
-
 run_test "Restricted filesystem access" \
     "./landrun --log-level debug ls /usr" \
     1
-
-run_test "Restricted network access" \
-    "./landrun --log-level debug --rox /usr --ro /etc -- curl -s --connect-timeout 2 https://example.com" \
-    7
-
 
 # Cleanup
 print_status "Cleaning up..."

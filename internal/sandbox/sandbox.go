@@ -6,7 +6,7 @@ import (
 
 	"github.com/landlock-lsm/go-landlock/landlock"
 	"github.com/landlock-lsm/go-landlock/landlock/syscall"
-	"github.com/zouuup/landrun/internal/log"
+	"github.com/victor4x/landrun/internal/log"
 )
 
 type Config struct {
@@ -16,9 +16,7 @@ type Config struct {
 	ReadWriteExecutablePaths []string
 	BindTCPPorts             []int
 	ConnectTCPPorts          []int
-	BestEffort               bool
 	UnrestrictedFilesystem   bool
-	UnrestrictedNetwork      bool
 }
 
 // getReadWriteExecutableRights returns a full set of permissions including execution
@@ -27,8 +25,6 @@ func getReadWriteExecutableRights(dir bool) landlock.AccessFSSet {
 	accessRights |= landlock.AccessFSSet(syscall.AccessFSExecute)
 	accessRights |= landlock.AccessFSSet(syscall.AccessFSReadFile)
 	accessRights |= landlock.AccessFSSet(syscall.AccessFSWriteFile)
-	accessRights |= landlock.AccessFSSet(syscall.AccessFSTruncate)
-	accessRights |= landlock.AccessFSSet(syscall.AccessFSIoctlDev)
 
 	if dir {
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSReadDir)
@@ -41,7 +37,6 @@ func getReadWriteExecutableRights(dir bool) landlock.AccessFSSet {
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSMakeFifo)
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSMakeBlock)
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSMakeSym)
-		accessRights |= landlock.AccessFSSet(syscall.AccessFSRefer)
 	}
 
 	return accessRights
@@ -72,8 +67,6 @@ func getReadWriteRights(dir bool) landlock.AccessFSSet {
 	accessRights := landlock.AccessFSSet(0)
 	accessRights |= landlock.AccessFSSet(syscall.AccessFSReadFile)
 	accessRights |= landlock.AccessFSSet(syscall.AccessFSWriteFile)
-	accessRights |= landlock.AccessFSSet(syscall.AccessFSTruncate)
-	accessRights |= landlock.AccessFSSet(syscall.AccessFSIoctlDev)
 	if dir {
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSReadDir)
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSRemoveDir)
@@ -85,7 +78,6 @@ func getReadWriteRights(dir bool) landlock.AccessFSSet {
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSMakeFifo)
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSMakeBlock)
 		accessRights |= landlock.AccessFSSet(syscall.AccessFSMakeSym)
-		accessRights |= landlock.AccessFSSet(syscall.AccessFSRefer)
 	}
 
 	return accessRights
@@ -104,14 +96,11 @@ func Apply(cfg Config) error {
 	log.Info("Sandbox config: %+v", cfg)
 
 	// Get the most advanced Landlock version available
-	llCfg := landlock.V5
-	if cfg.BestEffort {
-		llCfg = llCfg.BestEffort()
-	}
+	// Set requirement to ABI V1 to better support older kernels
+	llCfg := landlock.V1
 
 	// Collect our rules
 	var file_rules []landlock.Rule
-	var net_rules []landlock.Rule
 
 	// Process executable paths
 	for _, path := range cfg.ReadOnlyExecutablePaths {
@@ -136,33 +125,12 @@ func Apply(cfg Config) error {
 		file_rules = append(file_rules, landlock.PathAccess(getReadWriteRights(isDirectory(path)), path))
 	}
 
-	// Add rules for TCP port binding
-	for _, port := range cfg.BindTCPPorts {
-		log.Debug("Adding TCP bind port: %d", port)
-		net_rules = append(net_rules, landlock.BindTCP(uint16(port)))
-	}
-
-	// Add rules for TCP connections
-	for _, port := range cfg.ConnectTCPPorts {
-		log.Debug("Adding TCP connect port: %d", port)
-		net_rules = append(net_rules, landlock.ConnectTCP(uint16(port)))
-	}
-
-	if cfg.UnrestrictedFilesystem && cfg.UnrestrictedNetwork {
-		log.Info("Unrestricted filesystem and network access enabled; no rules applied.")
-		return nil
-	}
-
 	if cfg.UnrestrictedFilesystem {
 		log.Info("Unrestricted filesystem access enabled.")
 	}
 
-	if cfg.UnrestrictedNetwork {
-		log.Info("Unrestricted network access enabled")
-	}
-
 	// If we have no rules, just return
-	if len(file_rules) == 0 && len(net_rules) == 0 && !cfg.UnrestrictedFilesystem && !cfg.UnrestrictedNetwork {
+	if len(file_rules) == 0 && !cfg.UnrestrictedFilesystem {
 		log.Error("No rules provided, applying default restrictive rules, this will restrict anything landlock can do.")
 		err := llCfg.Restrict()
 		if err != nil {
@@ -178,12 +146,6 @@ func Apply(cfg Config) error {
 		err := llCfg.RestrictPaths(file_rules...)
 		if err != nil {
 			return fmt.Errorf("failed to apply Landlock filesystem restrictions: %w", err)
-		}
-	}
-	if !cfg.UnrestrictedNetwork {
-		err := llCfg.RestrictNet(net_rules...)
-		if err != nil {
-			return fmt.Errorf("failed to apply Landlock network restrictions: %w", err)
 		}
 	}
 

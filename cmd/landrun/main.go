@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v2"
-	"github.com/zouuup/landrun/internal/exec"
-	"github.com/zouuup/landrun/internal/log"
-	"github.com/zouuup/landrun/internal/sandbox"
+	"github.com/victor4x/landrun/internal/exec"
+	"github.com/victor4x/landrun/internal/log"
+	"github.com/victor4x/landrun/internal/sandbox"
 )
 
 // Version is the current version of landrun
@@ -69,21 +69,6 @@ func main() {
 				Name:  "rwx",
 				Usage: "Allow read-write access with execution to this path",
 			},
-			&cli.IntSliceFlag{
-				Name:   "bind-tcp",
-				Usage:  "Allow binding to these TCP ports",
-				Hidden: false,
-			},
-			&cli.IntSliceFlag{
-				Name:   "connect-tcp",
-				Usage:  "Allow connecting to these TCP ports",
-				Hidden: false,
-			},
-			&cli.BoolFlag{
-				Name:  "best-effort",
-				Usage: "Use best effort mode (fall back to less restrictive sandbox if necessary)",
-				Value: false,
-			},
 			&cli.StringSliceFlag{
 				Name:  "env",
 				Usage: "Environment variables to pass to the sandboxed command (KEY=VALUE or just KEY to pass current value)",
@@ -92,11 +77,6 @@ func main() {
 			&cli.BoolFlag{
 				Name:  "unrestricted-filesystem",
 				Usage: "Allow unrestricted filesystem access",
-				Value: false,
-			},
-			&cli.BoolFlag{
-				Name:  "unrestricted-network",
-				Usage: "Allow unrestricted network access",
 				Value: false,
 			},
 			&cli.BoolFlag{
@@ -161,9 +141,7 @@ func main() {
 				ReadWriteExecutablePaths: readWriteExecutablePaths,
 				BindTCPPorts:             c.IntSlice("bind-tcp"),
 				ConnectTCPPorts:          c.IntSlice("connect-tcp"),
-				BestEffort:               c.Bool("best-effort"),
 				UnrestrictedFilesystem:   c.Bool("unrestricted-filesystem"),
-				UnrestrictedNetwork:      c.Bool("unrestricted-network"),
 			}
 
 			// Process environment variables

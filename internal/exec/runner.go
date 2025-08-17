@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/zouuup/landrun/internal/log"
+	"github.com/victor4x/landrun/internal/log"
 )
 
 func Run(args []string, env []string) error {

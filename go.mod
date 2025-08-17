@@ -1,4 +1,4 @@
-module github.com/zouuup/landrun
+module github.com/victor4x/landrun
 
 go 1.18
 
